@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <title>Pi Station</title>
+    <link rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a1a; touch-action: none; }
+      #game-container { width: 100%; height: 100%; position: relative; }
+      #game-canvas { width: 100%; height: 100%; display: block; }
+
+      /* Mini-game overlay */
+      #mini-game-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.9);
+        z-index: 100;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+      }
+      #mini-game-overlay.active { display: flex; }
+      #mini-game-content {
+        width: 100%;
+        max-width: 500px;
+        max-height: 90vh;
+        overflow-y: auto;
+        color: white;
+        text-align: center;
+      }
+
+      .mg-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; }
+      .mg-subtitle { font-size: 0.9rem; color: #a78bfa; margin-bottom: 1.5rem; }
+      .mg-close {
+        position: absolute; top: 1rem; right: 1rem;
+        background: rgba(255,255,255,0.1); border: none; color: white;
+        width: 40px; height: 40px; border-radius: 50%; font-size: 1.5rem;
+        cursor: pointer;
+      }
+      .mg-btn {
+        display: inline-block; padding: 0.75rem 2rem;
+        background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+        color: white; border: none; border-radius: 0.75rem;
+        font-size: 1.1rem; font-weight: bold; cursor: pointer;
+        margin: 0.5rem; transition: transform 0.1s;
+      }
+      .mg-btn:active { transform: scale(0.95); }
+      .mg-btn.secondary { background: rgba(255,255,255,0.15); }
+
+      /* Pi Memory specific */
+      .pi-display {
+        font-family: monospace; font-size: 2rem; letter-spacing: 0.2em;
+        color: #22d3ee; margin: 1rem 0; min-height: 3rem;
+        word-break: break-all; line-height: 1.5;
+      }
+      .pi-numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; max-width: 300px; margin: 1rem auto; }
+      .pi-numpad button {
+        padding: 1rem; font-size: 1.5rem; font-weight: bold;
+        background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 0.75rem; color: white; cursor: pointer;
+        transition: background 0.1s;
+      }
+      .pi-numpad button:active { background: rgba(139, 92, 246, 0.5); }
+      .pi-numpad .zero { grid-column: span 3; }
+
+      /* Monte Carlo specific */
+      #mc-canvas { border-radius: 0.75rem; border: 2px solid rgba(255,255,255,0.2); touch-action: none; }
+      .mc-stats { display: flex; gap: 1rem; justify-content: center; margin: 1rem 0; flex-wrap: wrap; }
+      .mc-stat { background: rgba(255,255,255,0.1); padding: 0.5rem 1rem; border-radius: 0.5rem; }
+      .mc-stat-value { font-size: 1.3rem; font-weight: bold; color: #22d3ee; }
+      .mc-stat-label { font-size: 0.7rem; color: #a78bfa; }
+
+      /* Slice the Pi specific */
+      .slice-question { font-size: 1.2rem; margin: 1rem 0; color: #e2e8f0; min-height: 3rem; }
+      .slice-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; max-width: 400px; margin: 1rem auto; }
+      .slice-choice {
+        padding: 1rem; font-size: 1.1rem;
+        background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
+        border-radius: 0.75rem; color: white; cursor: pointer;
+      }
+      .slice-choice.correct { background: rgba(34, 197, 94, 0.4); border-color: #22c55e; }
+      .slice-choice.wrong { background: rgba(239, 68, 68, 0.4); border-color: #ef4444; }
+      .slice-timer { font-size: 3rem; font-weight: bold; color: #22d3ee; }
+      .slice-score-display { font-size: 1.2rem; color: #a78bfa; margin: 0.5rem 0; }
+
+      /* Players sidebar */
+      #players-list {
+        position: fixed; top: 0.5rem; right: 0.5rem;
+        background: rgba(0,0,0,0.7); border-radius: 0.75rem;
+        padding: 0.5rem; max-width: 150px; z-index: 50;
+        max-height: 50vh; overflow-y: auto;
+      }
+      .player-entry {
+        display: flex; align-items: center; gap: 0.3rem;
+        padding: 0.25rem 0.5rem; color: white; font-size: 0.7rem;
+      }
+      .player-avatar { font-size: 1rem; }
+      .player-score { color: #22d3ee; margin-left: auto; font-size: 0.6rem; }
+    </style>
+  </head>
+  <body>
+    <div id="game-container">
+      <div id="game-canvas"></div>
+    </div>
+
+    <div id="players-list"></div>
+
+    <div id="mini-game-overlay">
+      <button class="mg-close" onclick="window.piStation.closeMiniGame()">&times;</button>
+      <div id="mini-game-content"></div>
+    </div>
+
+    <script>
+      window.PLAYER_TOKEN = "<%= @player.session_token %>";
+      window.PLAYER_ID = "<%= @player.id %>";
+      window.PLAYER_NAME = "<%= @player.name %>";
+      window.PLAYER_AVATAR = "<%= @player.avatar_key %>";
+    </script>
+    <script src={~p"/assets/js/game.js"}></script>
+  </body>
+</html>

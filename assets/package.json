@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "nipplejs": "^0.10.2",
+    "phaser": "^3.90.0"
+  }
+}

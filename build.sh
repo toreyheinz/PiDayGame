@@ -24,6 +24,12 @@ fi
 mix deps.get --only prod
 MIX_ENV=prod mix compile
 
+# Install npm dependencies if package.json exists
+if [ -f assets/package.json ]; then
+  echo "Installing npm dependencies..."
+  npm install --prefix assets
+fi
+
 # Compile assets
 MIX_ENV=prod mix assets.build
 MIX_ENV=prod mix assets.deploy

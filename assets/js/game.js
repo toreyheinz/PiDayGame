@@ -4,6 +4,7 @@ import { HubScene } from "./game/HubScene"
 import { PiMemoryGame } from "./game/PiMemoryGame"
 import { MonteCarloGame } from "./game/MonteCarloGame"
 import { SliceThePiGame } from "./game/SliceThePiGame"
+import { SoundFX } from "./game/SoundFX"
 
 // --- Phoenix Socket Connection ---
 const socket = new Socket("/game_socket", {
@@ -54,15 +55,18 @@ hubChannel.join()
   .receive("ok", () => console.log("Joined hub!"))
   .receive("error", (resp) => console.error("Unable to join hub", resp))
 
-// --- Mini-game Manager (exposed globally for HTML overlay) ---
+// --- Mini-game Manager ---
 window.piStation = {
   openMiniGame(gameType) {
     const overlay = document.getElementById("mini-game-overlay")
     const content = document.getElementById("mini-game-content")
     overlay.classList.add("active")
 
-    // Notify hub we're in a game
+    // Hide station prompt
+    document.getElementById("station-prompt").classList.remove("visible")
+
     hubChannel.push("enter_game", { game: gameType })
+    SoundFX.countdown()
 
     const channel = miniChannel(gameType)
 
@@ -86,7 +90,6 @@ window.piStation = {
     const overlay = document.getElementById("mini-game-overlay")
     overlay.classList.remove("active")
 
-    // Clear content safely
     const content = document.getElementById("mini-game-content")
     while (content.firstChild) content.removeChild(content.firstChild)
 
@@ -99,11 +102,42 @@ window.piStation = {
     window.piStation._currentGame = null
   },
 
+  // Chat
+  sendChat(message) {
+    if (message) {
+      hubChannel.push("chat", { message })
+    }
+  },
+
+  // Station prompt — called from HubScene
+  showStationPrompt(station) {
+    const el = document.getElementById("station-prompt")
+    if (station) {
+      el.textContent = `Tap to play ${station.label.replace("\n", " ")}!`
+      el.classList.add("visible")
+      el.onclick = () => window.piStation.openMiniGame(station.game)
+    } else {
+      el.classList.remove("visible")
+      el.onclick = null
+    }
+  },
+
   _currentChannel: null,
   _currentGame: null,
 }
 
-// --- Players List UI (using safe DOM methods) ---
+// --- Chat messages from server ---
+hubChannel.on("chat", ({ player_id, name, message }) => {
+  SoundFX.chat()
+
+  // Pass to Phaser scene for bubble rendering
+  const scene = game.scene.getScene("HubScene")
+  if (scene && scene.showRemoteChat) {
+    scene.showRemoteChat(player_id, name, message)
+  }
+})
+
+// --- Players List UI ---
 const playersListEl = document.getElementById("players-list")
 
 const avatarSymbols = {
@@ -112,16 +146,29 @@ const avatarSymbols = {
   epsilon: "\u03B5", zeta: "\u03B6"
 }
 
+let prevPlayerCount = 0
+
 function updatePlayersList() {
   const players = []
   presence.list((id, { metas: [meta] }) => {
     players.push({ id, ...meta })
   })
 
+  // Play join sound when new player appears
+  if (players.length > prevPlayerCount && prevPlayerCount > 0) {
+    SoundFX.join()
+  }
+  prevPlayerCount = players.length
+
   players.sort((a, b) => (b.score || 0) - (a.score || 0))
 
-  // Clear existing entries safely
   while (playersListEl.firstChild) playersListEl.removeChild(playersListEl.firstChild)
+
+  // Header
+  const header = document.createElement("div")
+  header.style.cssText = "color:#a78bfa;font-size:0.6rem;padding:0.2rem 0.4rem;font-weight:bold;"
+  header.textContent = `Online: ${players.length}`
+  playersListEl.appendChild(header)
 
   players.forEach(p => {
     const entry = document.createElement("div")
@@ -146,3 +193,6 @@ function updatePlayersList() {
 }
 
 presence.onSync(() => updatePlayersList())
+
+// Export SoundFX globally for mini-games
+window.SoundFX = SoundFX

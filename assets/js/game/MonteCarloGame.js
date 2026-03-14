@@ -82,6 +82,8 @@ export const MonteCarloGame = {
 
       if (inside) dartsInCircle++
 
+      if (window.SoundFX) window.SoundFX.dart()
+
       // Draw dart
       ctx.beginPath()
       ctx.arc(x, y, 3, 0, Math.PI * 2)
@@ -112,6 +114,7 @@ export const MonteCarloGame = {
           estimate: parseFloat(finalEstimate.toFixed(6)),
           darts: totalDarts
         }).receive("ok", ({ score, error: err }) => {
+          if (window.SoundFX) window.SoundFX.score()
           while (resultArea.firstChild) resultArea.removeChild(resultArea.firstChild)
 
           const result = document.createElement("div")

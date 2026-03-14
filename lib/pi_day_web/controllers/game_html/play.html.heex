@@ -2,45 +2,43 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <title>Pi Station</title>
-    <link rel="stylesheet" href={~p"/assets/css/app.css"} />
     <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a1a; touch-action: none; }
+      * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      html, body {
+        width: 100%; height: 100%; overflow: hidden; background: #0a0a1a;
+        touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none;
+        user-select: none; overscroll-behavior: none;
+        position: fixed; inset: 0;
+      }
       #game-container { width: 100%; height: 100%; position: relative; }
       #game-canvas { width: 100%; height: 100%; display: block; }
 
       /* Mini-game overlay */
       #mini-game-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0,0,0,0.9);
-        z-index: 100;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem;
+        display: none; position: fixed; inset: 0;
+        background: rgba(0,0,0,0.92); z-index: 100;
+        flex-direction: column; align-items: center;
+        justify-content: flex-start; padding: 1rem;
+        overflow-y: auto; -webkit-overflow-scrolling: touch;
       }
       #mini-game-overlay.active { display: flex; }
       #mini-game-content {
-        width: 100%;
-        max-width: 500px;
-        max-height: 90vh;
-        overflow-y: auto;
-        color: white;
-        text-align: center;
+        width: 100%; max-width: 500px; color: white;
+        text-align: center; padding-bottom: 2rem; margin-top: 2rem;
       }
 
-      .mg-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; }
+      .mg-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 0.5rem; }
       .mg-subtitle { font-size: 0.9rem; color: #a78bfa; margin-bottom: 1.5rem; }
       .mg-close {
-        position: absolute; top: 1rem; right: 1rem;
-        background: rgba(255,255,255,0.1); border: none; color: white;
-        width: 40px; height: 40px; border-radius: 50%; font-size: 1.5rem;
-        cursor: pointer;
+        position: fixed; top: 0.75rem; right: 0.75rem;
+        background: rgba(255,255,255,0.15); border: none; color: white;
+        width: 44px; height: 44px; border-radius: 50%; font-size: 1.5rem;
+        cursor: pointer; z-index: 110;
       }
       .mg-btn {
         display: inline-block; padding: 0.75rem 2rem;
@@ -48,59 +46,109 @@
         color: white; border: none; border-radius: 0.75rem;
         font-size: 1.1rem; font-weight: bold; cursor: pointer;
         margin: 0.5rem; transition: transform 0.1s;
+        -webkit-tap-highlight-color: transparent;
       }
       .mg-btn:active { transform: scale(0.95); }
       .mg-btn.secondary { background: rgba(255,255,255,0.15); }
 
-      /* Pi Memory specific */
+      /* Pi Memory */
       .pi-display {
-        font-family: monospace; font-size: 2rem; letter-spacing: 0.2em;
-        color: #22d3ee; margin: 1rem 0; min-height: 3rem;
-        word-break: break-all; line-height: 1.5;
+        font-family: monospace; font-size: 1.8rem; letter-spacing: 0.15em;
+        color: #22d3ee; margin: 0.75rem 0; min-height: 2.5rem;
+        word-break: break-all; line-height: 1.4;
       }
-      .pi-numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; max-width: 300px; margin: 1rem auto; }
+      .pi-numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; max-width: 280px; margin: 0.75rem auto; }
       .pi-numpad button {
-        padding: 1rem; font-size: 1.5rem; font-weight: bold;
+        padding: 0.9rem; font-size: 1.4rem; font-weight: bold;
         background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
         border-radius: 0.75rem; color: white; cursor: pointer;
-        transition: background 0.1s;
+        -webkit-tap-highlight-color: transparent;
       }
       .pi-numpad button:active { background: rgba(139, 92, 246, 0.5); }
       .pi-numpad .zero { grid-column: span 3; }
 
-      /* Monte Carlo specific */
-      #mc-canvas { border-radius: 0.75rem; border: 2px solid rgba(255,255,255,0.2); touch-action: none; }
-      .mc-stats { display: flex; gap: 1rem; justify-content: center; margin: 1rem 0; flex-wrap: wrap; }
-      .mc-stat { background: rgba(255,255,255,0.1); padding: 0.5rem 1rem; border-radius: 0.5rem; }
-      .mc-stat-value { font-size: 1.3rem; font-weight: bold; color: #22d3ee; }
-      .mc-stat-label { font-size: 0.7rem; color: #a78bfa; }
+      /* Monte Carlo */
+      #mc-canvas { border-radius: 0.75rem; border: 2px solid rgba(255,255,255,0.2); touch-action: none; max-width: 100%; }
+      .mc-stats { display: flex; gap: 0.75rem; justify-content: center; margin: 0.75rem 0; flex-wrap: wrap; }
+      .mc-stat { background: rgba(255,255,255,0.1); padding: 0.4rem 0.75rem; border-radius: 0.5rem; }
+      .mc-stat-value { font-size: 1.2rem; font-weight: bold; color: #22d3ee; }
+      .mc-stat-label { font-size: 0.65rem; color: #a78bfa; }
 
-      /* Slice the Pi specific */
-      .slice-question { font-size: 1.2rem; margin: 1rem 0; color: #e2e8f0; min-height: 3rem; }
-      .slice-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; max-width: 400px; margin: 1rem auto; }
+      /* Slice the Pi */
+      .slice-question { font-size: 1.1rem; margin: 0.75rem 0; color: #e2e8f0; min-height: 2.5rem; }
+      .slice-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; max-width: 400px; margin: 0.75rem auto; }
       .slice-choice {
-        padding: 1rem; font-size: 1.1rem;
+        padding: 0.9rem; font-size: 1.1rem;
         background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2);
         border-radius: 0.75rem; color: white; cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
       }
       .slice-choice.correct { background: rgba(34, 197, 94, 0.4); border-color: #22c55e; }
       .slice-choice.wrong { background: rgba(239, 68, 68, 0.4); border-color: #ef4444; }
-      .slice-timer { font-size: 3rem; font-weight: bold; color: #22d3ee; }
-      .slice-score-display { font-size: 1.2rem; color: #a78bfa; margin: 0.5rem 0; }
+      .slice-timer { font-size: 2.5rem; font-weight: bold; color: #22d3ee; }
+      .slice-score-display { font-size: 1rem; color: #a78bfa; margin: 0.3rem 0; }
 
       /* Players sidebar */
       #players-list {
         position: fixed; top: 0.5rem; right: 0.5rem;
         background: rgba(0,0,0,0.7); border-radius: 0.75rem;
-        padding: 0.5rem; max-width: 150px; z-index: 50;
-        max-height: 50vh; overflow-y: auto;
+        padding: 0.5rem; max-width: 140px; z-index: 50;
+        max-height: 40vh; overflow-y: auto;
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
       }
       .player-entry {
         display: flex; align-items: center; gap: 0.3rem;
-        padding: 0.25rem 0.5rem; color: white; font-size: 0.7rem;
+        padding: 0.2rem 0.4rem; color: white; font-size: 0.65rem;
       }
-      .player-avatar { font-size: 1rem; }
-      .player-score { color: #22d3ee; margin-left: auto; font-size: 0.6rem; }
+      .player-avatar { font-size: 0.9rem; }
+      .player-score { color: #22d3ee; margin-left: auto; font-size: 0.55rem; }
+
+      /* Chat input */
+      #chat-bar {
+        position: fixed; bottom: 0; left: 0; right: 0;
+        z-index: 60; display: flex; gap: 0.5rem;
+        padding: 0.5rem; background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        transform: translateY(100%); transition: transform 0.2s;
+      }
+      #chat-bar.visible { transform: translateY(0); }
+      #chat-bar input {
+        flex: 1; padding: 0.6rem 0.75rem; border-radius: 0.75rem;
+        border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1);
+        color: white; font-size: 0.9rem; outline: none;
+      }
+      #chat-bar input::placeholder { color: rgba(255,255,255,0.4); }
+      #chat-bar button {
+        padding: 0.6rem 1rem; border-radius: 0.75rem;
+        border: none; background: linear-gradient(135deg, #06b6d4, #8b5cf6);
+        color: white; font-weight: bold; font-size: 0.9rem; cursor: pointer;
+      }
+
+      /* Chat toggle button */
+      #chat-toggle {
+        position: fixed; bottom: 0.75rem; left: 0.75rem; z-index: 55;
+        width: 44px; height: 44px; border-radius: 50%;
+        background: rgba(99,102,241,0.6); border: none; color: white;
+        font-size: 1.2rem; cursor: pointer;
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      }
+
+      /* Station prompt */
+      #station-prompt {
+        position: fixed; bottom: 4rem; left: 50%; transform: translateX(-50%);
+        z-index: 45; padding: 0.6rem 1.5rem; border-radius: 1rem;
+        background: linear-gradient(135deg, rgba(6,182,212,0.8), rgba(139,92,246,0.8));
+        color: white; font-weight: bold; font-size: 1rem;
+        cursor: pointer; display: none; white-space: nowrap;
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        animation: promptBounce 1.5s ease-in-out infinite;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #station-prompt.visible { display: block; }
+      @keyframes promptBounce {
+        0%, 100% { transform: translateX(-50%) translateY(0); }
+        50% { transform: translateX(-50%) translateY(-5px); }
+      }
     </style>
   </head>
   <body>
@@ -109,6 +157,15 @@
     </div>
 
     <div id="players-list"></div>
+
+    <button id="chat-toggle" onclick="toggleChat()">💬</button>
+
+    <div id="chat-bar">
+      <input id="chat-input" type="text" placeholder="Say something..." maxlength="100" autocomplete="off" />
+      <button onclick="sendChat()">Send</button>
+    </div>
+
+    <div id="station-prompt"></div>
 
     <div id="mini-game-overlay">
       <button class="mg-close" onclick="window.piStation.closeMiniGame()">&times;</button>
@@ -120,6 +177,35 @@
       window.PLAYER_ID = "<%= @player.id %>";
       window.PLAYER_NAME = "<%= @player.name %>";
       window.PLAYER_AVATAR = "<%= @player.avatar_key %>";
+
+      // Chat toggle
+      let chatVisible = false;
+      function toggleChat() {
+        chatVisible = !chatVisible;
+        document.getElementById('chat-bar').classList.toggle('visible', chatVisible);
+        if (chatVisible) document.getElementById('chat-input').focus();
+      }
+      function sendChat() {
+        const input = document.getElementById('chat-input');
+        const msg = input.value.trim();
+        if (msg && window.piStation && window.piStation.sendChat) {
+          window.piStation.sendChat(msg);
+          input.value = '';
+        }
+      }
+      document.getElementById('chat-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendChat();
+        e.stopPropagation(); // Don't let WASD keys move player while typing
+      });
+      document.getElementById('chat-input').addEventListener('keyup', (e) => e.stopPropagation());
+      document.getElementById('chat-input').addEventListener('keypress', (e) => e.stopPropagation());
+
+      // Prevent iOS rubber-band scrolling
+      document.addEventListener('touchmove', (e) => {
+        if (!e.target.closest('#mini-game-overlay') && !e.target.closest('#chat-bar')) {
+          e.preventDefault();
+        }
+      }, { passive: false });
     </script>
     <script src={~p"/assets/js/game.js"}></script>
   </body>

@@ -93,7 +93,10 @@ export const SliceThePiGame = {
             timeLeft--
             timerEl.textContent = timeLeft
 
-            if (timeLeft <= 3) timerEl.style.color = "#ef4444"
+            if (timeLeft <= 3) {
+              timerEl.style.color = "#ef4444"
+              if (window.SoundFX) window.SoundFX.tick()
+            }
             else if (timeLeft <= 5) timerEl.style.color = "#f59e0b"
 
             if (timeLeft <= 0) {
@@ -127,8 +130,10 @@ export const SliceThePiGame = {
       if (isCorrect) {
         streak++
         correctCount++
+        if (window.SoundFX) window.SoundFX.correct()
       } else {
         streak = 0
+        if (window.SoundFX) window.SoundFX.wrong()
       }
 
       channel.push("slice_answer", {
@@ -180,6 +185,7 @@ export const SliceThePiGame = {
         correct: correctCount,
         total: TOTAL_QUESTIONS
       }).receive("ok", () => {
+        if (window.SoundFX) window.SoundFX.score()
         while (resultArea.firstChild) resultArea.removeChild(resultArea.firstChild)
 
         const result = document.createElement("div")

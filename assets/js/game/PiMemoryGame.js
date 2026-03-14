@@ -66,6 +66,7 @@ export const PiMemoryGame = {
 
       if (digit === expected) {
         position++
+        if (window.SoundFX) window.SoundFX.correct()
         display.textContent = "3." + PI_DIGITS.substring(0, position)
         scoreDisplay.textContent = `Digits: ${position}`
 
@@ -76,6 +77,7 @@ export const PiMemoryGame = {
 
         // Milestone celebrations
         if (position === 10 || position === 25 || position === 50 || position === 100) {
+          if (window.SoundFX) window.SoundFX.milestone()
           const milestone = document.createElement("div")
           milestone.style.cssText = "color: #22d3ee; font-size: 1.5rem; animation: pulse 0.5s;"
           milestone.textContent = `${position} digits!`
@@ -84,6 +86,7 @@ export const PiMemoryGame = {
         }
       } else {
         // Wrong digit — game over
+        if (window.SoundFX) window.SoundFX.wrong()
         gameOver = true
         const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
 
@@ -103,6 +106,7 @@ export const PiMemoryGame = {
         // Submit score
         channel.push("pi_game_over", { score: position })
           .receive("ok", () => {
+            if (window.SoundFX) window.SoundFX.score()
             while (resultArea.firstChild) resultArea.removeChild(resultArea.firstChild)
 
             const result = document.createElement("div")

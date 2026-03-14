@@ -13,7 +13,6 @@ const AVATAR_COLORS = {
   epsilon: 0x14b8a6, zeta: 0xa855f7
 }
 
-// Game station definitions
 const STATIONS = [
   { x: 150, y: 150, game: "pi_memory", label: "Pi Memory\nSprint", icon: "\u{1F9E0}", color: 0x06b6d4 },
   { x: 650, y: 150, game: "monte_carlo", label: "Monte Carlo\nPi", icon: "\u{1F3AF}", color: 0x8b5cf6 },
@@ -24,8 +23,10 @@ export class HubScene extends Phaser.Scene {
   constructor() {
     super({ key: "HubScene" })
     this.otherPlayers = {}
+    this.otherBubbles = {}
     this.moveSpeed = 200
     this.joystickVector = { x: 0, y: 0 }
+    this.nearStation = null
   }
 
   create() {
@@ -37,28 +38,23 @@ export class HubScene extends Phaser.Scene {
     this.createPlayer()
     this.setupControls()
     this.setupPresence()
-    this.setupChat()
 
-    // Title text
+    // Title
     this.add.text(400, 30, "Pi Station", {
       fontSize: "24px", fontFamily: "monospace", color: "#a78bfa",
     }).setOrigin(0.5)
 
-    // Instructions
-    this.add.text(400, 570, "Walk to a station and tap it to play!", {
-      fontSize: "14px", fontFamily: "monospace", color: "#6366f1",
-    }).setOrigin(0.5)
+    // Floating pi particles
+    this.createParticles()
   }
 
   drawRoom() {
-    // Floor grid
     const g = this.add.graphics()
 
-    // Dark background
     g.fillStyle(0x0a0a2e)
     g.fillRect(0, 0, 800, 600)
 
-    // Grid lines
+    // Grid
     g.lineStyle(1, 0x1e1b4b, 0.3)
     for (let x = 0; x <= 800; x += 40) {
       g.moveTo(x, 0); g.lineTo(x, 600)
@@ -68,40 +64,64 @@ export class HubScene extends Phaser.Scene {
     }
     g.strokePath()
 
-    // Border
-    g.lineStyle(3, 0x6366f1, 0.5)
+    // Border with glow effect
+    g.lineStyle(2, 0x6366f1, 0.3)
     g.strokeRect(20, 20, 760, 560)
+    g.lineStyle(1, 0x818cf8, 0.15)
+    g.strokeRect(18, 18, 764, 564)
 
-    // Pi decorations scattered around
-    const piPositions = [
-      [80, 500], [720, 80], [720, 500], [250, 300], [550, 300]
-    ]
+    // Pi decorations
+    const piPositions = [[80, 500], [720, 80], [720, 500], [250, 300], [550, 300]]
     piPositions.forEach(([x, y]) => {
       this.add.text(x, y, "\u03C0", {
         fontSize: "40px", color: "#1e1b4b",
       }).setOrigin(0.5).setAlpha(0.3)
     })
 
-    // "3.14" large watermark
+    // "3.14" watermark
     this.add.text(400, 300, "3.14", {
       fontSize: "120px", fontFamily: "monospace", color: "#1e1b4b",
     }).setOrigin(0.5).setAlpha(0.15)
   }
 
-  createStations() {
-    this.stationZones = []
+  createParticles() {
+    // Floating math symbols as ambient particles
+    const symbols = ["\u03C0", "\u2211", "\u222B", "\u221E", "e", "\u2202", "\u2207"]
+    for (let i = 0; i < 8; i++) {
+      const sym = this.add.text(
+        Phaser.Math.Between(50, 750),
+        Phaser.Math.Between(50, 550),
+        Phaser.Math.RND.pick(symbols),
+        { fontSize: "16px", color: "#312e81" }
+      ).setOrigin(0.5).setAlpha(0.2).setDepth(0)
 
-    STATIONS.forEach(station => {
-      // Glow circle
-      const glow = this.add.circle(station.x, station.y, 50, station.color, 0.15)
       this.tweens.add({
-        targets: glow, alpha: { from: 0.1, to: 0.3 },
+        targets: sym,
+        y: sym.y - 30,
+        alpha: { from: 0.15, to: 0.3 },
+        duration: Phaser.Math.Between(3000, 6000),
+        yoyo: true,
+        repeat: -1,
+        delay: Phaser.Math.Between(0, 3000),
+      })
+    }
+  }
+
+  createStations() {
+    STATIONS.forEach(station => {
+      // Outer glow ring
+      const glow = this.add.circle(station.x, station.y, 55, station.color, 0.08)
+      this.tweens.add({
+        targets: glow,
+        scaleX: 1.2, scaleY: 1.2,
+        alpha: { from: 0.08, to: 0.2 },
         duration: 1500, yoyo: true, repeat: -1,
       })
 
       // Station circle
       const circle = this.add.circle(station.x, station.y, 35, station.color, 0.6)
       circle.setStrokeStyle(2, station.color)
+      station._circle = circle
 
       // Icon
       this.add.text(station.x, station.y - 5, station.icon, {
@@ -114,18 +134,16 @@ export class HubScene extends Phaser.Scene {
         align: "center",
       }).setOrigin(0.5)
 
-      // Interactive zone
-      const zone = this.add.zone(station.x, station.y, 80, 80).setInteractive()
+      // Larger interactive zone
+      const zone = this.add.zone(station.x, station.y, 100, 100).setInteractive()
       zone.on("pointerdown", () => {
         const dist = Phaser.Math.Distance.Between(
           this.player.x, this.player.y, station.x, station.y
         )
-        if (dist < 120) {
+        if (dist < 150) {
           window.piStation.openMiniGame(station.game)
         }
       })
-
-      this.stationZones.push({ zone, station })
     })
   }
 
@@ -134,22 +152,16 @@ export class HubScene extends Phaser.Scene {
     const avatarKey = window.PLAYER_AVATAR
     const color = AVATAR_COLORS[avatarKey] || 0x06b6d4
 
-    // Player container
     this.player = this.add.container(x, y)
 
-    // Shadow
     const shadow = this.add.ellipse(0, 12, 30, 10, 0x000000, 0.3)
-
-    // Body circle
     const body = this.add.circle(0, 0, 18, color)
     body.setStrokeStyle(2, 0xffffff, 0.5)
 
-    // Avatar symbol
     const symbol = this.add.text(0, 0, AVATAR_SYMBOLS[avatarKey] || "?", {
       fontSize: "18px", fontFamily: "serif", color: "#ffffff",
     }).setOrigin(0.5)
 
-    // Name tag
     const nameTag = this.add.text(0, -30, window.PLAYER_NAME, {
       fontSize: "11px", fontFamily: "monospace", color: "#ffffff",
       backgroundColor: "rgba(0,0,0,0.5)", padding: { x: 4, y: 2 },
@@ -158,22 +170,26 @@ export class HubScene extends Phaser.Scene {
     this.player.add([shadow, body, symbol, nameTag])
     this.player.setDepth(10)
 
-    // Chat bubble (hidden by default)
-    this.chatBubble = this.add.text(0, -50, "", {
-      fontSize: "10px", fontFamily: "monospace", color: "#ffffff",
-      backgroundColor: "rgba(99,102,241,0.8)", padding: { x: 6, y: 3 },
-      wordWrap: { width: 120 },
-    }).setOrigin(0.5).setVisible(false)
-    this.player.add(this.chatBubble)
+    // Chat bubble for local player
+    this.myChatBubble = this.add.text(0, -50, "", {
+      fontSize: "11px", fontFamily: "monospace", color: "#ffffff",
+      backgroundColor: "rgba(99,102,241,0.85)", padding: { x: 8, y: 4 },
+      wordWrap: { width: 140 },
+    }).setOrigin(0.5).setVisible(false).setDepth(100)
+    this.player.add(this.myChatBubble)
 
-    // Proximity highlight for stations
-    this.proximityText = this.add.text(400, 530, "", {
-      fontSize: "16px", fontFamily: "monospace", color: "#22d3ee",
-    }).setOrigin(0.5).setDepth(20)
+    // Idle bobbing animation
+    this.tweens.add({
+      targets: body,
+      y: -2,
+      duration: 800,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    })
   }
 
   setupControls() {
-    // Keyboard
     this.cursors = this.input.keyboard.createCursorKeys()
     this.wasd = this.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -185,7 +201,8 @@ export class HubScene extends Phaser.Scene {
     // Mobile joystick
     if ("ontouchstart" in window) {
       const joystickZone = document.createElement("div")
-      joystickZone.style.cssText = "position:fixed;bottom:0;left:0;width:50%;height:40%;z-index:40;"
+      joystickZone.style.cssText = "position:fixed;bottom:0;left:0;width:50%;height:40%;z-index:40;pointer-events:auto;"
+      joystickZone.id = "joystick-zone"
       document.body.appendChild(joystickZone)
 
       const manager = nipplejs.create({
@@ -207,9 +224,8 @@ export class HubScene extends Phaser.Scene {
       })
     }
 
-    // Throttled position broadcast
     this.lastBroadcast = 0
-    this.broadcastInterval = 50 // ms
+    this.broadcastInterval = 50
   }
 
   setupPresence() {
@@ -224,6 +240,10 @@ export class HubScene extends Phaser.Scene {
         if (!presences[id]) {
           this.otherPlayers[id].destroy()
           delete this.otherPlayers[id]
+          if (this.otherBubbles[id]) {
+            this.otherBubbles[id].destroy()
+            delete this.otherBubbles[id]
+          }
         }
       })
 
@@ -232,14 +252,19 @@ export class HubScene extends Phaser.Scene {
         if (id === window.PLAYER_ID) return
 
         if (this.otherPlayers[id]) {
-          // Smoothly move existing player
           this.tweens.add({
             targets: this.otherPlayers[id],
             x: meta.x, y: meta.y,
             duration: 100, ease: "Linear",
           })
+
+          // Update status text
+          const statusObj = this.otherPlayers[id].getAt(4)
+          if (statusObj) {
+            const label = meta.status !== "hub" ? `Playing ${meta.status}` : ""
+            statusObj.setText(label)
+          }
         } else {
-          // Create new player
           this.otherPlayers[id] = this.createOtherPlayer(meta)
         }
       })
@@ -263,88 +288,129 @@ export class HubScene extends Phaser.Scene {
       backgroundColor: "rgba(0,0,0,0.4)", padding: { x: 4, y: 2 },
     }).setOrigin(0.5)
 
-    // Status indicator
-    const statusText = meta.status !== "hub" ? meta.status : ""
-    const status = this.add.text(0, 25, statusText ? `Playing: ${statusText}` : "", {
+    const statusLabel = meta.status !== "hub" ? `Playing ${meta.status}` : ""
+    const status = this.add.text(0, 25, statusLabel, {
       fontSize: "8px", fontFamily: "monospace", color: "#22d3ee",
     }).setOrigin(0.5)
 
     container.add([shadow, body, symbol, nameTag, status])
     container.setDepth(5)
 
+    // Bobbing animation
+    this.tweens.add({
+      targets: body,
+      y: -2,
+      duration: 800 + Math.random() * 400,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    })
+
     return container
   }
 
-  setupChat() {
-    this.hubChannel.on("chat", ({ player_id, name, message }) => {
-      if (player_id === window.PLAYER_ID) {
-        this.showChatBubble(this.player, message, this.chatBubble)
-      } else if (this.otherPlayers[player_id]) {
-        const bubble = this.add.text(
-          this.otherPlayers[player_id].x,
-          this.otherPlayers[player_id].y - 50,
-          message,
-          {
-            fontSize: "10px", fontFamily: "monospace", color: "#ffffff",
-            backgroundColor: "rgba(99,102,241,0.8)", padding: { x: 6, y: 3 },
-            wordWrap: { width: 120 },
-          }
-        ).setOrigin(0.5).setDepth(20)
-
-        this.time.delayedCall(3000, () => bubble.destroy())
+  // Called from game.js when chat message arrives
+  showRemoteChat(playerId, name, message) {
+    if (playerId === window.PLAYER_ID) {
+      // Own message
+      this.myChatBubble.setText(message).setVisible(true)
+      if (this._myChatTimer) this._myChatTimer.remove()
+      this._myChatTimer = this.time.delayedCall(4000, () => this.myChatBubble.setVisible(false))
+    } else if (this.otherPlayers[playerId]) {
+      // Other player's message
+      if (this.otherBubbles[playerId]) {
+        this.otherBubbles[playerId].destroy()
       }
-    })
-  }
 
-  showChatBubble(container, message, bubble) {
-    bubble.setText(message).setVisible(true)
-    this.time.delayedCall(3000, () => bubble.setVisible(false))
+      const container = this.otherPlayers[playerId]
+      const bubble = this.add.text(container.x, container.y - 50, message, {
+        fontSize: "10px", fontFamily: "monospace", color: "#ffffff",
+        backgroundColor: "rgba(99,102,241,0.85)", padding: { x: 8, y: 4 },
+        wordWrap: { width: 140 },
+      }).setOrigin(0.5).setDepth(200)
+
+      this.otherBubbles[playerId] = bubble
+
+      // Fade out after 4 seconds
+      this.time.delayedCall(4000, () => {
+        if (this.otherBubbles[playerId] === bubble) {
+          bubble.destroy()
+          delete this.otherBubbles[playerId]
+        }
+      })
+    }
   }
 
   update(time) {
     if (!this.player) return
 
-    // Movement
     let vx = 0, vy = 0
 
-    // Keyboard
-    if (this.cursors.left.isDown || this.wasd.left.isDown) vx = -1
-    if (this.cursors.right.isDown || this.wasd.right.isDown) vx = 1
-    if (this.cursors.up.isDown || this.wasd.up.isDown) vy = -1
-    if (this.cursors.down.isDown || this.wasd.down.isDown) vy = 1
+    // Keyboard (only if chat input is not focused)
+    const chatFocused = document.activeElement === document.getElementById("chat-input")
+    if (!chatFocused) {
+      if (this.cursors.left.isDown || this.wasd.left.isDown) vx = -1
+      if (this.cursors.right.isDown || this.wasd.right.isDown) vx = 1
+      if (this.cursors.up.isDown || this.wasd.up.isDown) vy = -1
+      if (this.cursors.down.isDown || this.wasd.down.isDown) vy = 1
+    }
 
-    // Joystick override
+    // Joystick
     if (Math.abs(this.joystickVector.x) > 0.1 || Math.abs(this.joystickVector.y) > 0.1) {
       vx = this.joystickVector.x
       vy = this.joystickVector.y
     }
 
-    // Normalize diagonal movement
+    // Normalize
     if (vx !== 0 && vy !== 0) {
       const len = Math.sqrt(vx * vx + vy * vy)
       vx /= len
       vy /= len
     }
 
-    // Apply movement
     const speed = this.moveSpeed * (1 / 60)
     this.player.x = Phaser.Math.Clamp(this.player.x + vx * speed, 40, 760)
     this.player.y = Phaser.Math.Clamp(this.player.y + vy * speed, 40, 560)
 
-    // Check station proximity
+    // Station proximity — use HTML prompt instead of Phaser text (more tappable on mobile)
     let nearStation = null
+    let closestDist = Infinity
     STATIONS.forEach(station => {
       const dist = Phaser.Math.Distance.Between(
         this.player.x, this.player.y, station.x, station.y
       )
-      if (dist < 120) nearStation = station
+      if (dist < 150 && dist < closestDist) {
+        nearStation = station
+        closestDist = dist
+      }
     })
 
-    this.proximityText.setText(
-      nearStation ? `Tap ${nearStation.icon} to play ${nearStation.label.replace("\n", " ")}!` : ""
-    )
+    // Update station visual feedback
+    if (nearStation !== this.nearStation) {
+      this.nearStation = nearStation
+      window.piStation.showStationPrompt(nearStation)
 
-    // Broadcast position (throttled)
+      // Pulse the station circle when near
+      STATIONS.forEach(station => {
+        if (station._circle) {
+          if (station === nearStation) {
+            station._circle.setStrokeStyle(3, 0xffffff)
+          } else {
+            station._circle.setStrokeStyle(2, station.color)
+          }
+        }
+      })
+    }
+
+    // Update other players' bubble positions
+    Object.entries(this.otherBubbles).forEach(([id, bubble]) => {
+      if (this.otherPlayers[id]) {
+        bubble.x = this.otherPlayers[id].x
+        bubble.y = this.otherPlayers[id].y - 50
+      }
+    })
+
+    // Broadcast position
     if (time - this.lastBroadcast > this.broadcastInterval && (vx !== 0 || vy !== 0)) {
       this.hubChannel.push("move", {
         x: Math.round(this.player.x),
@@ -353,7 +419,7 @@ export class HubScene extends Phaser.Scene {
       this.lastBroadcast = time
     }
 
-    // Sort players by Y for depth
+    // Y-sort depth
     this.children.list
       .filter(c => c.type === "Container")
       .forEach(c => c.setDepth(c.y))

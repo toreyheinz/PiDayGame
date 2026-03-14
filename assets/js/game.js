@@ -54,18 +54,31 @@ game.registry.set("miniChannel", miniChannel)
 
 // Join hub channel
 hubChannel.join()
-  .receive("ok", () => console.log("Joined hub!"))
+  .receive("ok", () => {
+    console.log("Joined hub!")
+    // Auto-open game if navigated to a game URL (e.g. /projectile-pi)
+    if (window.AUTO_OPEN_GAME) {
+      setTimeout(() => window.piStation.openMiniGame(window.AUTO_OPEN_GAME), 500)
+    }
+  })
   .receive("error", (resp) => console.error("Unable to join hub", resp))
 
 // --- Mini-game Manager ---
 window.piStation = {
   openMiniGame(gameType) {
+    // Don't re-open if a game is already active
+    if (window.piStation._currentGame) return
+
     const overlay = document.getElementById("mini-game-overlay")
     const content = document.getElementById("mini-game-content")
     overlay.classList.add("active")
 
     // Hide station prompt
     document.getElementById("station-prompt").classList.remove("visible")
+
+    // Disable Phaser input while overlay is active
+    const scene = game.scene.getScene("HubScene")
+    if (scene) scene.input.enabled = false
 
     hubChannel.push("enter_game", { game: gameType })
     SoundFX.countdown()
@@ -102,6 +115,10 @@ window.piStation = {
     while (content.firstChild) content.removeChild(content.firstChild)
 
     hubChannel.push("leave_game", {})
+
+    // Re-enable Phaser input
+    const scene = game.scene.getScene("HubScene")
+    if (scene) scene.input.enabled = true
 
     if (window.piStation._currentChannel) {
       window.piStation._currentChannel.leave()

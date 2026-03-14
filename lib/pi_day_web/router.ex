@@ -25,6 +25,11 @@ defmodule PiDayWeb.Router do
     pipe_through [:browser, :require_player]
 
     get "/play", GameController, :play
+    get "/projectile-pi", GameController, :game
+    get "/pi-memory", GameController, :game
+    get "/monte-carlo", GameController, :game
+    get "/slice-the-pi", GameController, :game
+    get "/pi-trivia", GameController, :game
   end
 
   scope "/", PiDayWeb do

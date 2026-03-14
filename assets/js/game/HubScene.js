@@ -139,6 +139,7 @@ export class HubScene extends Phaser.Scene {
       // Larger interactive zone
       const zone = this.add.zone(station.x, station.y, 100, 100).setInteractive()
       zone.on("pointerdown", () => {
+        if (window.piStation._currentGame) return
         const dist = Phaser.Math.Distance.Between(
           this.player.x, this.player.y, station.x, station.y
         )
@@ -202,6 +203,7 @@ export class HubScene extends Phaser.Scene {
 
     // Space to enter nearby station
     this.input.keyboard.on("keydown-SPACE", () => {
+      if (window.piStation._currentGame) return
       if (document.activeElement === document.getElementById("chat-input")) return
       if (this.nearStation) {
         window.piStation.openMiniGame(this.nearStation.game)

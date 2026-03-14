@@ -4,6 +4,8 @@ import { HubScene } from "./game/HubScene"
 import { PiMemoryGame } from "./game/PiMemoryGame"
 import { MonteCarloGame } from "./game/MonteCarloGame"
 import { SliceThePiGame } from "./game/SliceThePiGame"
+import { TriviaGame } from "./game/TriviaGame"
+import { ProjectileGame } from "./game/ProjectileGame"
 import { SoundFX } from "./game/SoundFX"
 
 // --- Phoenix Socket Connection ---
@@ -80,6 +82,12 @@ window.piStation = {
       case "slice_the_pi":
         SliceThePiGame.start(content, channel)
         break
+      case "pi_trivia":
+        TriviaGame.start(content, channel)
+        break
+      case "projectile_pi":
+        ProjectileGame.start(content, channel)
+        break
     }
 
     window.piStation._currentChannel = channel
@@ -112,8 +120,10 @@ window.piStation = {
   // Station prompt — called from HubScene
   showStationPrompt(station) {
     const el = document.getElementById("station-prompt")
+    const isMobile = "ontouchstart" in window
     if (station) {
-      el.textContent = `Tap to play ${station.label.replace("\n", " ")}!`
+      const action = isMobile ? "Tap" : "Press SPACE"
+      el.textContent = `${action} to play ${station.label.replace("\n", " ")}!`
       el.classList.add("visible")
       el.onclick = () => window.piStation.openMiniGame(station.game)
     } else {

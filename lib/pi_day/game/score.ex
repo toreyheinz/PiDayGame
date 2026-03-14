@@ -15,7 +15,7 @@ defmodule PiDay.Game.Score do
     timestamps(type: :utc_datetime, updated_at: false)
   end
 
-  @game_types ~w(pi_memory monte_carlo slice_the_pi)
+  @game_types ~w(pi_memory monte_carlo slice_the_pi pi_trivia projectile_pi)
 
   def changeset(score, attrs) do
     score

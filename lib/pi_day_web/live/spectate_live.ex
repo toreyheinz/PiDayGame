@@ -20,19 +20,26 @@ defmodule PiDayWeb.SpectateLive do
        leaderboard: Game.leaderboard(),
        pi_top: Game.top_scores("pi_memory", 5),
        mc_top: Game.top_scores("monte_carlo", 5),
-       slice_top: Game.top_scores("slice_the_pi", 5)
+       slice_top: Game.top_scores("slice_the_pi", 5),
+       trivia_top: Game.top_scores("pi_trivia", 5),
+       projectile_top: Game.top_scores("projectile_pi", 5)
      )}
+  end
+
+  defp refresh(socket) do
+    assign(socket,
+      leaderboard: Game.leaderboard(),
+      pi_top: Game.top_scores("pi_memory", 5),
+      mc_top: Game.top_scores("monte_carlo", 5),
+      slice_top: Game.top_scores("slice_the_pi", 5),
+      trivia_top: Game.top_scores("pi_trivia", 5),
+      projectile_top: Game.top_scores("projectile_pi", 5)
+    )
   end
 
   @impl true
   def handle_info(:refresh_leaderboard, socket) do
-    {:noreply,
-     assign(socket,
-       leaderboard: Game.leaderboard(),
-       pi_top: Game.top_scores("pi_memory", 5),
-       mc_top: Game.top_scores("monte_carlo", 5),
-       slice_top: Game.top_scores("slice_the_pi", 5)
-     )}
+    {:noreply, refresh(socket)}
   end
 
   def handle_info(:push_presence, socket) do
@@ -46,13 +53,7 @@ defmodule PiDayWeb.SpectateLive do
   end
 
   def handle_info({:score_updated, _score}, socket) do
-    {:noreply,
-     assign(socket,
-       leaderboard: Game.leaderboard(),
-       pi_top: Game.top_scores("pi_memory", 5),
-       mc_top: Game.top_scores("monte_carlo", 5),
-       slice_top: Game.top_scores("slice_the_pi", 5)
-     )}
+    {:noreply, refresh(socket)}
   end
 
   # Ignore presence diffs — we poll with push_presence instead
@@ -102,10 +103,12 @@ defmodule PiDayWeb.SpectateLive do
         </div>
 
         <!-- Mini-game leaderboards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-          <.mini_leaderboard title="Pi Memory Sprint" icon="🧠" scores={@pi_top} />
-          <.mini_leaderboard title="Monte Carlo Pi" icon="🎯" scores={@mc_top} />
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-6">
+          <.mini_leaderboard title="Pi Memory" icon="🧠" scores={@pi_top} />
+          <.mini_leaderboard title="Monte Carlo" icon="🎯" scores={@mc_top} />
           <.mini_leaderboard title="Slice the Pi" icon="🔪" scores={@slice_top} />
+          <.mini_leaderboard title="Pi Trivia" icon="💡" scores={@trivia_top} />
+          <.mini_leaderboard title="Projectile Pi" icon="🚀" scores={@projectile_top} />
         </div>
 
         <div class="text-center mt-6 text-purple-400/50 text-sm font-mono">

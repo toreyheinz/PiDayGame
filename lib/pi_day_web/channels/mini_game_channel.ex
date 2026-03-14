@@ -3,8 +3,10 @@ defmodule PiDayWeb.MiniGameChannel do
 
   alias PiDay.Game
 
+  @valid_games ~w(pi_memory monte_carlo slice_the_pi pi_trivia projectile_pi)
+
   @impl true
-  def join("game:mini:" <> game_type, _payload, socket) when game_type in ~w(pi_memory monte_carlo slice_the_pi) do
+  def join("game:mini:" <> game_type, _payload, socket) when game_type in @valid_games do
     socket = assign(socket, :game_type, game_type)
     {:ok, socket}
   end
@@ -104,6 +106,73 @@ defmodule PiDayWeb.MiniGameChannel do
     })
 
     broadcast!(socket, "slice_score", %{
+      player_id: player.id,
+      name: player.name,
+      score: score
+    })
+
+    {:reply, {:ok, %{recorded: true}}, socket}
+  end
+
+  # --- Pi Trivia Blitz ---
+
+  def handle_in("trivia_get_question", _payload, socket) do
+    question = Game.get_trivia_question()
+    {:reply, {:ok, question}, socket}
+  end
+
+  def handle_in("trivia_answer", %{"correct" => correct, "time_ms" => time_ms, "streak" => streak}, socket) do
+    player = socket.assigns.player
+    points = if correct, do: max(10, 150 - div(time_ms, 100)) + streak * 15, else: 0
+
+    if correct do
+      broadcast!(socket, "trivia_correct", %{
+        player_id: player.id,
+        name: player.name,
+        streak: streak
+      })
+    end
+
+    {:reply, {:ok, %{points: points}}, socket}
+  end
+
+  def handle_in("trivia_game_over", %{"score" => score, "correct" => correct, "total" => total}, socket) do
+    player = socket.assigns.player
+
+    Game.record_score(%{
+      player_id: player.id,
+      game_type: "pi_trivia",
+      score: score,
+      metadata: %{correct: correct, total: total}
+    })
+
+    broadcast!(socket, "trivia_score", %{
+      player_id: player.id,
+      name: player.name,
+      score: score
+    })
+
+    {:reply, {:ok, %{recorded: true}}, socket}
+  end
+
+  # --- Projectile Pi ---
+
+  def handle_in("projectile_get_target", _payload, socket) do
+    target = Game.generate_projectile_target()
+    {:reply, {:ok, target}, socket}
+  end
+
+  def handle_in("projectile_submit", %{"score" => score, "target_x" => target_x, "best_error" => best_error}, socket) do
+    player = socket.assigns.player
+
+    Game.record_score(%{
+      player_id: player.id,
+      game_type: "projectile_pi",
+      score: score,
+      metadata: %{target_x: target_x, best_error: best_error}
+    })
+
+    broadcast!(socket, "projectile_score", %{
       player_id: player.id,
       name: player.name,
       score: score

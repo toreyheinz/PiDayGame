@@ -38,9 +38,11 @@ const AVATAR_COLORS = {
 }
 
 const STATIONS = [
-  { x: 150, y: 150, label: "Pi Memory\nSprint", icon: "\u{1F9E0}", color: "#06b6d4" },
-  { x: 650, y: 150, label: "Monte Carlo\nPi", icon: "\u{1F3AF}", color: "#8b5cf6" },
-  { x: 400, y: 450, label: "Slice\nthe Pi", icon: "\u{1FA93}", color: "#f59e0b" },
+  { x: 130, y: 130, label: "Pi Memory\nSprint", icon: "\u{1F9E0}", color: "#06b6d4" },
+  { x: 670, y: 130, label: "Monte Carlo\nPi", icon: "\u{1F3AF}", color: "#8b5cf6" },
+  { x: 130, y: 460, label: "Slice\nthe Pi", icon: "\u{1FA93}", color: "#f59e0b" },
+  { x: 670, y: 460, label: "Pi Trivia\nBlitz", icon: "\u{1F4A1}", color: "#ec4899" },
+  { x: 400, y: 300, label: "Projectile\nPi", icon: "\u{1F680}", color: "#22c55e" },
 ]
 
 const SpectateHub = {

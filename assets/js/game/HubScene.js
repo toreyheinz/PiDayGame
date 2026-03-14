@@ -14,9 +14,11 @@ const AVATAR_COLORS = {
 }
 
 const STATIONS = [
-  { x: 150, y: 150, game: "pi_memory", label: "Pi Memory\nSprint", icon: "\u{1F9E0}", color: 0x06b6d4 },
-  { x: 650, y: 150, game: "monte_carlo", label: "Monte Carlo\nPi", icon: "\u{1F3AF}", color: 0x8b5cf6 },
-  { x: 400, y: 450, game: "slice_the_pi", label: "Slice\nthe Pi", icon: "\u{1FA93}", color: 0xf59e0b },
+  { x: 130, y: 130, game: "pi_memory", label: "Pi Memory\nSprint", icon: "\u{1F9E0}", color: 0x06b6d4 },
+  { x: 670, y: 130, game: "monte_carlo", label: "Monte Carlo\nPi", icon: "\u{1F3AF}", color: 0x8b5cf6 },
+  { x: 130, y: 460, game: "slice_the_pi", label: "Slice\nthe Pi", icon: "\u{1FA93}", color: 0xf59e0b },
+  { x: 670, y: 460, game: "pi_trivia", label: "Pi Trivia\nBlitz", icon: "\u{1F4A1}", color: 0xec4899 },
+  { x: 400, y: 300, game: "projectile_pi", label: "Projectile\nPi", icon: "\u{1F680}", color: 0x22c55e },
 ]
 
 export class HubScene extends Phaser.Scene {
@@ -196,6 +198,14 @@ export class HubScene extends Phaser.Scene {
       down: Phaser.Input.Keyboard.KeyCodes.S,
       left: Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D,
+    })
+
+    // Space to enter nearby station
+    this.input.keyboard.on("keydown-SPACE", () => {
+      if (document.activeElement === document.getElementById("chat-input")) return
+      if (this.nearStation) {
+        window.piStation.openMiniGame(this.nearStation.game)
+      }
     })
 
     // Mobile joystick
